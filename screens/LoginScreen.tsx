@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../src/store';
-import { loginStart, loginSuccess, loginFailure, clearError } from '../src/store/slices/authSlice';
+import { loginUser, clearError } from '../src/store/slices/authSlice';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -23,33 +23,52 @@ export default function LoginScreen({ navigation }: any) {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Login Error', error);
-      dispatch(clearError());
+      // Handle specific Cognito errors
+      let errorMessage = error;
+      
+      if (error.includes('UserNotFoundException')) {
+        errorMessage = 'No account found with this email';
+      } else if (error.includes('NotAuthorizedException')) {
+        errorMessage = 'Incorrect email or password';
+      } else if (error.includes('UserNotConfirmedException')) {
+        errorMessage = 'Please verify your email first';
+      } else if (error.includes('NetworkError')) {
+        errorMessage = 'Network error. Please check your connection';
+      }
+      
+      Alert.alert('Login Error', errorMessage, [
+        { text: 'OK', onPress: () => dispatch(clearError()) }
+      ]);
     }
   }, [error, dispatch]);
 
   const handleLogin = async () => {
+    // Validation
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    dispatch(loginStart());
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
 
-    // Simulate API call
-    setTimeout(() => {
-      if (email === 'demo@digicount.com' && password === 'demo123') {
-        const user = {
-          id: '1',
-          email: email,
-          fullName: 'Demo User',
-          createdAt: new Date().toISOString(),
-        };
-        dispatch(loginSuccess(user));
-      } else {
-        dispatch(loginFailure('Invalid email or password'));
-      }
-    }, 1000);
+    try {
+      // Dispatch login action
+      await dispatch(loginUser({ 
+        email: email.toLowerCase().trim(), 
+        password 
+      })).unwrap();
+      
+      // Navigation is handled automatically by the navigation container
+      // based on isAuthenticated state
+    } catch (error) {
+      // Error is handled by the useEffect above
+      console.error('Login error:', error);
+    }
   };
 
   return (
@@ -77,6 +96,8 @@ export default function LoginScreen({ navigation }: any) {
               autoCapitalize="none"
               autoCorrect={false}
               editable={!isLoading}
+              autoComplete="email"
+              textContentType="emailAddress"
             />
           </View>
 
@@ -89,10 +110,15 @@ export default function LoginScreen({ navigation }: any) {
               onChangeText={setPassword}
               secureTextEntry
               editable={!isLoading}
+              autoComplete="password"
+              textContentType="password"
             />
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            disabled={isLoading}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
@@ -102,7 +128,10 @@ export default function LoginScreen({ navigation }: any) {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={styles.loadingText}>Signing in...</Text>
+              </View>
             ) : (
               <Text style={styles.loginButtonText}>Login</Text>
             )}
@@ -114,7 +143,10 @@ export default function LoginScreen({ navigation }: any) {
             <View style={styles.orLine} />
           </View>
 
-          <TouchableOpacity style={styles.googleButton} disabled={isLoading}>
+          <TouchableOpacity 
+            style={[styles.googleButton, isLoading && styles.googleButtonDisabled]} 
+            disabled={isLoading}
+          >
             <Text style={styles.googleButtonText}>Sign in with Google</Text>
           </TouchableOpacity>
         </View>
@@ -122,14 +154,17 @@ export default function LoginScreen({ navigation }: any) {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('SignUp')}
+            disabled={isLoading}
+          >
             <Text style={styles.signUpLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Demo Credentials */}
+        {/* Demo Credentials - Remove in production */}
         <View style={styles.demoContainer}>
-          <Text style={styles.demoText}>Demo: demo@digicount.com / demo123</Text>
+          <Text style={styles.demoText}>Demo: demo@digicount.com / Demo123!</Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -202,6 +237,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
   orContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -222,6 +267,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  googleButtonDisabled: {
+    opacity: 0.7,
   },
   googleButtonText: {
     color: '#333',
