@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../src/store';
-import { loginStart, loginSuccess, loginFailure } from '../src/store/slices/authSlice';
+import { signUpUser, clearError } from '../src/store/slices/authSlice';
 
 export default function SignUpScreen({ navigation }: any) {
   const [fullName, setFullName] = useState('');
@@ -22,9 +22,36 @@ export default function SignUpScreen({ navigation }: any) {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading } = useSelector((state: RootState) => state.auth);
+  const { isLoading, error, needsConfirmation, confirmationEmail } = useSelector((state: RootState) => state.auth);
+
+  // Navigate to confirmation screen when signup is successful
+  useEffect(() => {
+    if (needsConfirmation && confirmationEmail) {
+      console.log('Navigating to confirmation screen...');
+      navigation.navigate('Confirmation');
+    }
+  }, [needsConfirmation, confirmationEmail, navigation]);
+
+  useEffect(() => {
+    if (error) {
+      let errorMessage = error;
+      
+      if (error.includes('UsernameExistsException')) {
+        errorMessage = 'An account with this email already exists';
+      } else if (error.includes('InvalidPasswordException')) {
+        errorMessage = 'Password does not meet requirements';
+      } else if (error.includes('InvalidParameterException')) {
+        errorMessage = 'Invalid email or password format';
+      }
+      
+      Alert.alert('Sign Up Error', errorMessage, [
+        { text: 'OK', onPress: () => dispatch(clearError()) }
+      ]);
+    }
+  }, [error, dispatch]);
 
   const handleSignUp = async () => {
+    // Validation
     if (!fullName || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
@@ -35,8 +62,22 @@ export default function SignUpScreen({ navigation }: any) {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters long');
+      return;
+    }
+
+    // Check password requirements
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
+      Alert.alert(
+        'Password Requirements',
+        'Password must contain:\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character'
+      );
       return;
     }
 
@@ -46,19 +87,36 @@ export default function SignUpScreen({ navigation }: any) {
       return;
     }
 
-    dispatch(loginStart());
-
-    // Simulate API call
-    setTimeout(() => {
-      const user = {
-        id: Date.now().toString(),
-        email: email,
-        fullName: fullName,
-        createdAt: new Date().toISOString(),
-      };
-      dispatch(loginSuccess(user));
-      Alert.alert('Success!', 'Account created successfully');
-    }, 1000);
+    try {
+      console.log('Signing up user:', email);
+      
+      // Call the signup API
+      const result = await dispatch(signUpUser({ 
+        email: email.toLowerCase().trim(), 
+        password, 
+        fullName 
+      })).unwrap();
+      
+      console.log('Signup result:', result);
+      
+      // Show success message
+      Alert.alert(
+        'Sign Up Successful!',
+        'We have sent a verification code to your email. Please check your inbox.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigation will happen via useEffect
+              console.log('Alert dismissed, should navigate soon...');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Signup error:', error);
+      // Error handling is done in the useEffect above
+    }
   };
 
   return (
@@ -71,13 +129,11 @@ export default function SignUpScreen({ navigation }: any) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.inner}>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Join DigiCount to get started</Text>
           </View>
 
-          {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
@@ -103,6 +159,8 @@ export default function SignUpScreen({ navigation }: any) {
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
+                autoComplete="email"
+                textContentType="emailAddress"
               />
             </View>
 
@@ -110,12 +168,17 @@ export default function SignUpScreen({ navigation }: any) {
               <Text style={styles.label}>Password</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Create a password (min. 6 characters)"
+                placeholder="Min. 8 chars with upper, lower, number & special"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
                 editable={!isLoading}
+                autoComplete="password-new"
+                textContentType="newPassword"
               />
+              <Text style={styles.passwordHint}>
+                Must contain: uppercase, lowercase, number, and special character
+              </Text>
             </View>
 
             <View style={styles.inputContainer}>
@@ -127,6 +190,7 @@ export default function SignUpScreen({ navigation }: any) {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
                 editable={!isLoading}
+                autoComplete="password-new"
               />
             </View>
 
@@ -144,7 +208,10 @@ export default function SignUpScreen({ navigation }: any) {
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#fff" />
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={styles.loadingText}>Creating account...</Text>
+                </View>
               ) : (
                 <Text style={styles.signUpButtonText}>Sign Up</Text>
               )}
@@ -156,15 +223,20 @@ export default function SignUpScreen({ navigation }: any) {
               <View style={styles.orLine} />
             </View>
 
-            <TouchableOpacity style={styles.googleButton} disabled={isLoading}>
+            <TouchableOpacity 
+              style={[styles.googleButton, isLoading && styles.googleButtonDisabled]} 
+              disabled={isLoading}
+            >
               <Text style={styles.googleButtonText}>Sign up with Google</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Login')}
+              disabled={isLoading}
+            >
               <Text style={styles.loginLink}>Login</Text>
             </TouchableOpacity>
           </View>
@@ -220,6 +292,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fafafa',
   },
+  passwordHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   termsContainer: {
     marginBottom: 20,
   },
@@ -247,6 +325,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
   orContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -267,6 +355,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  googleButtonDisabled: {
+    opacity: 0.7,
   },
   googleButtonText: {
     color: '#333',

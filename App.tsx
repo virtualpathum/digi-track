@@ -1,83 +1,112 @@
-import React from 'react';
-import { Provider } from 'react-redux';
+// App.tsx
+import React, { useEffect } from 'react';
+import { Provider, useSelector, useDispatch } from 'react-redux';
+import { store, RootState, AppDispatch } from './src/store';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity, Text } from 'react-native';
-import { useSelector } from 'react-redux';
-import { store, RootState } from './src/store';
+import { TouchableOpacity, Text, View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PersistGate } from 'redux-persist/integration/react';
+import { persistor } from './src/store';
 
-// Import screens
+
+// Redux actions
+import { checkAuthStatus } from './src/store/slices/authSlice';
+
+// ─── Screens ────────────────────────────────────────────────────────────────────
 import HomeScreen from './screens/HomeScreen';
 import LoginScreen from './screens/LoginScreen';
 import SignUpScreen from './screens/SignUpScreen';
+import ConfirmationScreen from './screens/ConfirmationScreen';
 import DashboardScreen from './screens/DashboardScreen';
 
 const Stack = createNativeStackNavigator();
 
-function Navigation() {
-  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+// Loading screen component
+function LoadingScreen() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <ActivityIndicator size="large" color="#2196F3" />
+      <Text style={{ marginTop: 10, color: '#666' }}>Loading...</Text>
+    </View>
+  );
+}
+
+function AppNavigator() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { isAuthenticated, isLoading, needsConfirmation } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    dispatch(checkAuthStatus());
+  }, [dispatch]);
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: {
-            backgroundColor: '#2196F3',
-          },
+          headerStyle: { backgroundColor: '#2196F3' },
           headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          headerTitleStyle: { fontWeight: 'bold' },
         }}
       >
         {!isAuthenticated ? (
           <>
-            <Stack.Screen 
-              name="Home" 
+            <Stack.Screen
+              name="Home"
               component={HomeScreen}
-              options={{
-                headerShown: false,
-              }}
+              options={{ headerShown: false }}
             />
-            
-            <Stack.Screen 
-              name="Login" 
+
+            <Stack.Screen
+              name="Login"
               component={LoginScreen}
               options={({ navigation }) => ({
                 title: 'Login',
                 headerLeft: () => (
-                  <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={{ marginLeft: 10 }}
-                  >
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
                     <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
                   </TouchableOpacity>
                 ),
-                headerStyle: {
-                  backgroundColor: '#fff',
-                },
+                headerStyle: { backgroundColor: '#fff' },
                 headerTintColor: '#333',
                 headerShadowVisible: false,
                 headerBackVisible: false,
               })}
             />
-            
-            <Stack.Screen 
-              name="SignUp" 
+
+            <Stack.Screen
+              name="SignUp"
               component={SignUpScreen}
               options={({ navigation }) => ({
                 title: 'Create Account',
                 headerLeft: () => (
-                  <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={{ marginLeft: 10 }}
-                  >
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
                     <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
                   </TouchableOpacity>
                 ),
-                headerStyle: {
-                  backgroundColor: '#fff',
-                },
+                headerStyle: { backgroundColor: '#fff' },
+                headerTintColor: '#333',
+                headerShadowVisible: false,
+                headerBackVisible: false,
+              })}
+            />
+
+            <Stack.Screen
+              name="Confirmation"
+              component={ConfirmationScreen}
+              options={({ navigation }) => ({
+                title: 'Verify Email',
+                headerLeft: () => (
+                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                    <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
+                  </TouchableOpacity>
+                ),
+                headerStyle: { backgroundColor: '#fff' },
                 headerTintColor: '#333',
                 headerShadowVisible: false,
                 headerBackVisible: false,
@@ -85,12 +114,22 @@ function Navigation() {
             />
           </>
         ) : (
-          <Stack.Screen 
-            name="Dashboard" 
+          <Stack.Screen
+            name="Dashboard"
             component={DashboardScreen}
-            options={{
-              title: 'Dashboard',
+            options={{ 
+              title: 'Dashboard', 
               headerLeft: () => null,
+              headerRight: () => (
+                <TouchableOpacity
+                  onPress={() => {
+                    // Logout will be handled in Dashboard
+                  }}
+                  style={{ marginRight: 15 }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16 }}>Logout</Text>
+                </TouchableOpacity>
+              ),
             }}
           />
         )}
@@ -102,7 +141,12 @@ function Navigation() {
 export default function App() {
   return (
     <Provider store={store}>
-      <Navigation />
+      <PersistGate loading={<LoadingScreen />} persistor={persistor}>
+        <SafeAreaProvider>
+          <AppNavigator />
+  
+        </SafeAreaProvider>
+      </PersistGate>
     </Provider>
   );
 }

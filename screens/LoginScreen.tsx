@@ -1,3 +1,4 @@
+// screens/LoginScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -17,39 +18,36 @@ import { loginUser, clearError } from '../src/store/slices/authSlice';
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error } = useSelector((state: RootState) => state.auth);
+  const { isLoading, error, isAuthenticated } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     if (error) {
-      // Handle specific Cognito errors
-      let errorMessage = error;
-      
-      if (error.includes('UserNotFoundException')) {
-        errorMessage = 'No account found with this email';
-      } else if (error.includes('NotAuthorizedException')) {
-        errorMessage = 'Incorrect email or password';
-      } else if (error.includes('UserNotConfirmedException')) {
-        errorMessage = 'Please verify your email first';
-      } else if (error.includes('NetworkError')) {
-        errorMessage = 'Network error. Please check your connection';
-      }
-      
-      Alert.alert('Login Error', errorMessage, [
+      Alert.alert('Login Error', error, [
         { text: 'OK', onPress: () => dispatch(clearError()) }
       ]);
     }
   }, [error, dispatch]);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Navigate to main app or dashboard
+      // navigation.navigate('Dashboard'); // or your main app screen
+    }
+  }, [isAuthenticated, navigation]);
+
   const handleLogin = async () => {
+    // Clear any previous errors
+    dispatch(clearError());
+
     // Validation
     if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    // Email validation
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
@@ -57,16 +55,14 @@ export default function LoginScreen({ navigation }: any) {
     }
 
     try {
-      // Dispatch login action
       await dispatch(loginUser({ 
         email: email.toLowerCase().trim(), 
         password 
       })).unwrap();
       
-      // Navigation is handled automatically by the navigation container
-      // based on isAuthenticated state
+      // Success - navigation handled by useEffect
     } catch (error) {
-      // Error is handled by the useEffect above
+      // Error handling is done in the useEffect above
       console.error('Login error:', error);
     }
   };
@@ -79,8 +75,8 @@ export default function LoginScreen({ navigation }: any) {
       <View style={styles.inner}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Sign in to continue to DigiCount</Text>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Login to your DigiCount account</Text>
         </View>
 
         {/* Form */}
@@ -130,7 +126,7 @@ export default function LoginScreen({ navigation }: any) {
             {isLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color="#fff" size="small" />
-                <Text style={styles.loadingText}>Signing in...</Text>
+                <Text style={styles.loadingText}>Logging in...</Text>
               </View>
             ) : (
               <Text style={styles.loginButtonText}>Login</Text>
@@ -147,7 +143,7 @@ export default function LoginScreen({ navigation }: any) {
             style={[styles.googleButton, isLoading && styles.googleButtonDisabled]} 
             disabled={isLoading}
           >
-            <Text style={styles.googleButtonText}>Sign in with Google</Text>
+            <Text style={styles.googleButtonText}>Login with Google</Text>
           </TouchableOpacity>
         </View>
 
@@ -160,11 +156,6 @@ export default function LoginScreen({ navigation }: any) {
           >
             <Text style={styles.signUpLink}>Sign Up</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Demo Credentials - Remove in production */}
-        <View style={styles.demoContainer}>
-          <Text style={styles.demoText}>Demo: demo@digicount.com / Demo123!</Text>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -216,7 +207,7 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   forgotPasswordText: {
     color: '#2196F3',
@@ -286,14 +277,5 @@ const styles = StyleSheet.create({
   signUpLink: {
     color: '#2196F3',
     fontWeight: 'bold',
-  },
-  demoContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  demoText: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
   },
 });
