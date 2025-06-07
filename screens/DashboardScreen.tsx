@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../src/store';
-import { logout } from '../src/store/slices/authSlice';
+import { logoutUser } from '../src/store/slices/authSlice';
 import { clearPersistedData } from '../src/utils/persistUtils';
 
 export default function DashboardScreen() {
@@ -26,9 +26,10 @@ export default function DashboardScreen() {
           text: 'Logout', 
           style: 'destructive',
           onPress: async () => {
-            dispatch(logout());
+            dispatch(logoutUser());
+            console.log('User logged out successfully');
             // Optional: Clear all persisted data
-            // await clearPersistedData();
+            await clearPersistedData();
           }
         },
       ]
@@ -46,7 +47,7 @@ export default function DashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             await clearPersistedData();
-            dispatch(logout());
+            dispatch(logoutUser());
           }
         },
       ]
