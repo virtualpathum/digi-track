@@ -37,7 +37,6 @@ function AppNavigator() {
   const { isAuthenticated, isLoading, needsConfirmation } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    // Check if user is already logged in
     dispatch(checkAuthStatus());
   }, [dispatch]);
 
@@ -45,94 +44,98 @@ function AppNavigator() {
     return <LoadingScreen />;
   }
 
+  let initialRoute = 'Home';
+  if (needsConfirmation) {
+    initialRoute = 'Confirmation';
+  } else if (isAuthenticated) {
+    initialRoute = 'Dashboard';
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator
+        initialRouteName={initialRoute}
         screenOptions={{
           headerStyle: { backgroundColor: '#2196F3' },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: 'bold' },
         }}
       >
-        {!isAuthenticated ? (
-          <>
-            <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{ headerShown: false }}
-            />
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
+          options={{ headerShown: false }}
+        />
 
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={({ navigation }) => ({
-                title: 'Login',
-                headerLeft: () => (
-                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                    <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
-                  </TouchableOpacity>
-                ),
-                headerStyle: { backgroundColor: '#fff' },
-                headerTintColor: '#333',
-                headerShadowVisible: false,
-                headerBackVisible: false,
-              })}
-            />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={({ navigation }) => ({
+            title: 'Login',
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
+              </TouchableOpacity>
+            ),
+            headerStyle: { backgroundColor: '#fff' },
+            headerTintColor: '#333',
+            headerShadowVisible: false,
+            headerBackVisible: false,
+          })}
+        />
 
-            <Stack.Screen
-              name="SignUp"
-              component={SignUpScreen}
-              options={({ navigation }) => ({
-                title: 'Create Account',
-                headerLeft: () => (
-                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                    <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
-                  </TouchableOpacity>
-                ),
-                headerStyle: { backgroundColor: '#fff' },
-                headerTintColor: '#333',
-                headerShadowVisible: false,
-                headerBackVisible: false,
-              })}
-            />
+        <Stack.Screen
+          name="SignUp"
+          component={SignUpScreen}
+          options={({ navigation }) => ({
+            title: 'Create Account',
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
+              </TouchableOpacity>
+            ),
+            headerStyle: { backgroundColor: '#fff' },
+            headerTintColor: '#333',
+            headerShadowVisible: false,
+            headerBackVisible: false,
+          })}
+        />
 
-            <Stack.Screen
-              name="Confirmation"
-              component={ConfirmationScreen}
-              options={({ navigation }) => ({
-                title: 'Verify Email',
-                headerLeft: () => (
-                  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-                    <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
-                  </TouchableOpacity>
-                ),
-                headerStyle: { backgroundColor: '#fff' },
-                headerTintColor: '#333',
-                headerShadowVisible: false,
-                headerBackVisible: false,
-              })}
-            />
-          </>
-        ) : (
-          <Stack.Screen
-            name="Dashboard"
-            component={DashboardScreen}
-            options={{ 
-              title: 'Dashboard', 
-              headerLeft: () => null,
-              headerRight: () => (
-                <TouchableOpacity
-                  onPress={() => {
-                    // Logout will be handled in Dashboard
-                  }}
-                  style={{ marginRight: 15 }}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16 }}>Logout</Text>
-                </TouchableOpacity>
-              ),
-            }}
-          />
-        )}
+        <Stack.Screen
+          name="Confirmation"
+          component={ConfirmationScreen}
+          options={({ navigation }) => ({
+            title: 'Verify Email',
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 16 }}>← Back</Text>
+              </TouchableOpacity>
+            ),
+            headerStyle: { backgroundColor: '#fff' },
+            headerTintColor: '#333',
+            headerShadowVisible: false,
+            headerBackVisible: false,
+          })}
+        />
+
+        <Stack.Screen
+          name="Dashboard"
+          component={DashboardScreen}
+          options={{
+            title: 'Dashboard',
+            headerLeft: () => null,
+            headerRight: () => (
+              <TouchableOpacity
+                onPress={() => {
+                  // Handle logout inside Dashboard
+                }}
+                style={{ marginRight: 15 }}
+              >
+                <Text style={{ color: '#fff', fontSize: 16 }}>Logout</Text>
+              </TouchableOpacity>
+            ),
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -18,8 +18,8 @@ import { signUpUser, clearError } from '../src/store/slices/authSlice';
 export default function SignUpScreen({ navigation }: any) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [password, setPassword] = useState('Test@1234'); // Default for testing
+  const [confirmPassword, setConfirmPassword] = useState('Test@1234'); // Default for testing
 
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error, needsConfirmation, confirmationEmail } = useSelector((state: RootState) => state.auth);
@@ -100,21 +100,14 @@ export default function SignUpScreen({ navigation }: any) {
       console.log('Signup result:', result);
       
       // Show success message
-      Alert.alert(
-        'Sign Up Successful!',
-        'We have sent a verification code to your email. Please check your inbox.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigation will happen via useEffect
-              console.log('Alert dismissed, should navigate soon...');
-            }
-          }
-        ]
-      );
+
+      if (result.needsConfirmation) {
+        console.log('Navigating to ConfirmationScreen...');
+        navigation.navigate('Confirmation');
+      }
     } catch (error) {
       console.error('Signup error:', error);
+    
       // Error handling is done in the useEffect above
     }
   };
